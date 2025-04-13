@@ -7,7 +7,9 @@
 use core::fmt::{self, Write};
 
 mod lang_items;
+mod sbi;
 
+core::arch::global_asm!(include_str!("entry.asm"));
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret;
     unsafe {
@@ -53,9 +55,21 @@ macro_rules! println{
         print(format_args!(concat!($fmt, "\n") $(, $($args)+)?));
     }
 }
-
+/// clear BSS segment
+pub fn clear_bss() {
+    extern "C" {
+        fn sbss();
+        fn ebss();
+    }
+    (sbss as usize..ebss as usize).for_each(|a| unsafe { (a as *mut u8).write_volatile(0) });
+}
+// #[no_mangle]
+// extern "C" fn _start() {
+//     println!("hello, world!");
+//     sbi::shutdown();
+// }
 #[no_mangle]
-extern "C" fn _start() {
-    println!("hello, world!");
-    sys_exit(9);
+pub fn rust_main() -> ! {
+    clear_bss();
+    sbi::shutdown();
 }
